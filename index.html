@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', 'Segoe UI', sans-serif; background: #DDE8DC; color: #2C2218; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #D0DFD0; }
+    ::-webkit-scrollbar-thumb { background: #C4B8A8; border-radius: 2px; }
+    .tab-btn { background: none; border: none; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .day-btn { background: none; border: 1px solid #D8CFBF; cursor: pointer; font-family: inherit; transition: all 0.15s; border-radius: 8px; padding: 6px 10px; font-size: 12px; color: #7A6A58; }
+    .day-btn:hover { border-color: #B8A898; color: #3C2E20; }
+    .day-btn.active { background: #F2EEE8; border-color: #A0845C; color: #6B4E2E; }
+    .day-btn.today { border-color: #A0845C88; }
+    .habit-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; user-select: none; }
+    .habit-row:hover { background: #D0DFD0; }
+    .check-box { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #C4B8A8; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; font-size: 11px; }
+    .sched-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #E0D8CC; align-items: flex-start; }
+    .sched-row:last-child { border-bottom: none; }
+    .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .note-input { background: #DDE8DC; border: 1px solid #C0D4BF; border-radius: 8px; padding: 8px 12px; font-family: inherit; font-size: 13px; color: #2C2218; width: 100%; outline: none; transition: border-color 0.15s; }
+    .note-input:focus { border-color: #A0845C; }
+    .add-btn { background: #A0845C; border: none; border-radius: 8px; padding: 8px 16px; color: #fff; font-family: inherit; font-size: 13px; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+    .add-btn:hover { opacity: 0.85; }
+    .bar-bg { background: #C8D8C8; border-radius: 4px; height: 6px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .stat-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+    .card { background: #F2EEE8; border-radius: 12px; border: 1px solid #C8BFAA; padding: 14px; }
+    .section-label { font-size: 11px; color: #9A8A78; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const FULL_DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday (WFH)","Saturday","Sunday"];
+
+    const HABITS = [
+      { id:"water",       label:"2.5L water",           icon:"💧", color:"#7C9A8A" },
+      { id:"treadmill",   label:"Treadmill",             icon:"🏃", color:"#A0845C" },
+      { id:"stretch",     label:"Stretch",               icon:"🧘", color:"#A0845C" },
+      { id:"piano",       label:"Piano 30min",           icon:"🎹", color:"#8C7355" },
+      { id:"art",         label:"Art 30min",             icon:"🎨", color:"#B07060" },
+      { id:"jp_immersion",label:"JP immersion",          icon:"🎌", color:"#7A8C6E" },
+      { id:"jp_review",   label:"JP review",             icon:"📖", color:"#7A8C6E" },
+      { id:"sleep",       label:"7h sleep",              icon:"🌙", color:"#7B8FA1" },
+      { id:"meals",       label:"Healthy meals",         icon:"🥗", color:"#8A9E72" },
+    ];
+    const SUNDAY_EXTRA = { id:"n5_exam",     label:"N5 mock exam",           icon:"📝", color:"#7A8C6E" };
+    const FRIDAY_EXTRA = { id:"recipe_plan", label:"Recipe plan for Sunday", icon:"🍳", color:"#8A9E72" };
+
+    const SCHEDULE = {
+      0: [
+        { time:"4:45am",  label:"Wake + hydrate",              cat:"health" },
+        { time:"4:55am",  label:"Get dressed + makeup",        cat:"care" },
+        { time:"5:15am",  label:"Commute (25 min)",            cat:"commute" },
+        { time:"6:00am",  label:"Breakfast at work",           cat:"food" },
+        { time:"6:30am",  label:"Work",                        cat:"work",    duration:"until 2:30pm" },
+        { time:"2:30pm",  label:"Commute home (40 min)",       cat:"commute" },
+        { time:"3:10pm",  label:"Treadmill + JP immersion",    cat:"health",  note:"2-in-1" },
+        { time:"4:15pm",  label:"Stretch",                     cat:"health" },
+        { time:"4:30pm",  label:"Shower",                      cat:"care" },
+        { time:"4:45pm",  label:"Piano",                       cat:"piano" },
+        { time:"5:15pm",  label:"Art",                         cat:"art" },
+        { time:"5:45pm",  label:"Japanese structured review",  cat:"japanese" },
+        { time:"6:05pm",  label:"Flex time",                   cat:"flex" },
+        { time:"6:30pm",  label:"Dinner (reheat)",             cat:"food" },
+        { time:"7:00pm",  label:"Flex time",                   cat:"flex" },
+        { time:"9:30pm",  label:"Prep + sleep",                cat:"sleep" },
+      ],
+      1: [
+        { time:"4:45am",  label:"Wake + hydrate",              cat:"health" },
+        { time:"4:55am",  label:"Get dressed + makeup",        cat:"care" },
+        { time:"5:15am",  label:"Commute (25 min)",            cat:"commute" },
+        { time:"6:00am",  label:"Breakfast at work",           cat:"food" },
+        { time:"6:30am",  label:"Work",                        cat:"work",    duration:"until 2:30pm" },
+        { time:"2:30pm",  label:"Commute home (40 min)",       cat:"commute" },
+        { time:"3:10pm",  label:"Treadmill + JP immersion",    cat:"health",  note:"2-in-1" },
+        { time:"4:15pm",  label:"Stretch",                     cat:"health" },
+        { time:"4:30pm",  label:"Shower",                      cat:"care" },
+        { time:"4:45pm",  label:"Piano",                       cat:"piano" },
+        { time:"5:15pm",  label:"Art",                         cat:"art" },
+        { time:"5:45pm",  label:"Japanese structured review",  cat:"japanese" },
+        { time:"6:05pm",  label:"Flex time",                   cat:"flex" },
+        { time:"6:30pm",  label:"Dinner (reheat)",             cat:"food" },
+        { time:"7:00pm",  label:"Flex time",                   cat:"flex" },
+        { time:"9:30pm",  label:"Prep + sleep",                cat:"sleep" },
+      ],
+      2: [
+        { time:"4:45am",  label:"Wake + hydrate",              cat:"health" },
+        { time:"4:55am",  label:"Get dressed + makeup",        cat:"care" },
+        { time:"5:15am",  label:"Commute (25 min)",            cat:"commute" },
+        { time:"6:00am",  label:"Breakfast at work",           cat:"food" },
+        { time:"6:30am",  label:"Work",                        cat:"work",    duration:"until 2:30pm" },
+        { time:"2:30pm",  label:"Commute home (40 min)",       cat:"commute" },
+        { time:"3:10pm",  label:"Treadmill + JP immersion",    cat:"health",  note:"2-in-1" },
+        { time:"4:15pm",  label:"Stretch",                     cat:"health" },
+        { time:"4:30pm",  label:"Shower",                      cat:"care" },
+        { time:"4:45pm",  label:"Piano",                       cat:"piano" },
+        { time:"5:15pm",  label:"Art",                         cat:"art" },
+        { time:"5:45pm",  label:"Japanese structured review",  cat:"japanese" },
+        { time:"6:05pm",  label:"Flex time",                   cat:"flex" },
+        { time:"6:30pm",  label:"Dinner (reheat)",             cat:"food" },
+        { time:"7:00pm",  label:"Flex time",                   cat:"flex" },
+        { time:"9:30pm",  label:"Prep + sleep",                cat:"sleep" },
+      ],
+      3: [
+        { time:"4:45am",  label:"Wake + hydrate",              cat:"health" },
+        { time:"4:55am",  label:"Get dressed + makeup",        cat:"care" },
+        { time:"5:15am",  label:"Commute (25 min)",            cat:"commute" },
+        { time:"6:00am",  label:"Breakfast at work",           cat:"food" },
+        { time:"6:30am",  label:"Work",                        cat:"work",    duration:"until 2:30pm" },
+        { time:"2:30pm",  label:"Commute home (40 min)",       cat:"commute" },
+        { time:"3:10pm",  label:"Treadmill + JP immersion",    cat:"health",  note:"2-in-1" },
+        { time:"4:15pm",  label:"Stretch",                     cat:"health" },
+        { time:"4:30pm",  label:"Shower",                      cat:"care" },
+        { time:"4:45pm",  label:"Piano",                       cat:"piano" },
+        { time:"5:15pm",  label:"Art",                         cat:"art" },
+        { time:"5:45pm",  label:"Japanese structured review",  cat:"japanese" },
+        { time:"6:05pm",  label:"Flex time",                   cat:"flex" },
+        { time:"6:30pm",  label:"Dinner — takeout/eat out 🎉", cat:"food" },
+        { time:"7:30pm",  label:"Flex time (no curfew!)",      cat:"flex",    note:"WFH tomorrow" },
+      ],
+      4: [
+        { time:"5:50am",    label:"Wake up — roll out of bed",   cat:"health" },
+        { time:"6:00am",    label:"Work from home",              cat:"work",  duration:"until 2:30pm" },
+        { time:"~sometime", label:"Recipe planning 🍳",          cat:"food",  note:"Pick Sunday's proteins, carbs, veg, sauces" },
+        { time:"2:30pm",    label:"Treadmill + JP immersion",    cat:"health",note:"2-in-1" },
+        { time:"3:45pm",    label:"Stretch",                     cat:"health" },
+        { time:"4:00pm",    label:"Shower",                      cat:"care" },
+        { time:"4:15pm",    label:"Piano (30 min)",              cat:"piano" },
+        { time:"4:45pm",    label:"Art — extended session",      cat:"art",   note:"deep session" },
+        { time:"5:30pm",    label:"Japanese structured review",  cat:"japanese" },
+        { time:"5:50pm",    label:"Flex time — weekend starts!", cat:"flex" },
+        { time:"6:30pm",    label:"Dinner",                      cat:"food" },
+        { time:"7:00pm",    label:"Flex time",                   cat:"flex" },
+      ],
+      5: [
+        { time:"7:30am",  label:"Wake + hydrate + breakfast",    cat:"food" },
+        { time:"8:15am",  label:"Piano",                         cat:"piano" },
+        { time:"9:00am",  label:"Treadmill + JP immersion",      cat:"health", note:"60–90 min" },
+        { time:"10:30am", label:"Shower",                        cat:"care" },
+        { time:"11:00am", label:"Chores (2 hrs max)",            cat:"chores" },
+        { time:"1:00pm",  label:"Lunch",                         cat:"food" },
+        { time:"1:30pm",  label:"Art — weekly focus session",    cat:"art",    note:"deep work" },
+        { time:"2:30pm",  label:"Japanese structured review",    cat:"japanese" },
+        { time:"3:00pm",  label:"Flex time / go out",            cat:"flex" },
+        { time:"6:30pm",  label:"Dinner — eat out or fun cook",  cat:"food" },
+        { time:"7:30pm",  label:"Movie night + flex",            cat:"flex" },
+      ],
+      6: [
+        { time:"7:30am",  label:"Wake + hydrate + breakfast",    cat:"food" },
+        { time:"8:15am",  label:"Piano",                         cat:"piano" },
+        { time:"9:00am",  label:"N5 mock exam session 📝",       cat:"japanese", note:"45–60 min" },
+        { time:"10:00am", label:"Treadmill + JP immersion",      cat:"health",   note:"relax after exam" },
+        { time:"11:30am", label:"Shower",                        cat:"care" },
+        { time:"11:45am", label:"Weekly batch cook 🍱",          cat:"food",     note:"only cook day" },
+        { time:"2:15pm",  label:"Lunch + label freezer",         cat:"food" },
+        { time:"2:45pm",  label:"Art",                           cat:"art" },
+        { time:"3:15pm",  label:"Flex time / gaming",            cat:"flex" },
+        { time:"6:30pm",  label:"Dinner (first from batch)",     cat:"food" },
+        { time:"7:00pm",  label:"Wind down",                     cat:"flex" },
+        { time:"9:30pm",  label:"Sleep — 4:45am Mon incoming",   cat:"sleep" },
+      ],
+    };
+
+    const CAT_COLORS = {
+      health:"#A0845C", care:"#C4907A", commute:"#8A8278",
+      food:"#8A9E72",   work:"#7A7570", piano:"#8C7355",
+      art:"#B07060",    japanese:"#7A8C6E", flex:"#7B8FA1",
+      sleep:"#6E7E8C",  chores:"#8A8070",
+    };
+
+    const WEEK_STATS = [
+      { label:"Sleep",       hours:49,   color:"#6E7E8C" },
+      { label:"Work",        hours:42.5, color:"#7A7570" },
+      { label:"Flex time",   hours:19,   color:"#7B8FA1" },
+      { label:"Japanese",    hours:12,   color:"#7A8C6E" },
+      { label:"Treadmill",   hours:7.5,  color:"#A0845C" },
+      { label:"Commute",     hours:4.3,  color:"#8A8278" },
+      { label:"Piano",       hours:3.5,  color:"#8C7355" },
+      { label:"Art",         hours:3.5,  color:"#B07060" },
+      { label:"Meals",       hours:3.5,  color:"#8A9E72" },
+      { label:"Chores",      hours:2,    color:"#8A8070" },
+      { label:"Shower/care", hours:1.75, color:"#C4907A" },
+    ];
+
+    function getWeekKey() {
+      const d = new Date();
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(d.setDate(diff));
+      return mon.toISOString().split("T")[0];
+    }
+
+    function getTodayIdx() {
+      const d = new Date().getDay();
+      return d === 0 ? 6 : d - 1;
+    }
+
+    function App() {
+      const [tab, setTab]           = useState("tracker");
+      const [day, setDay]           = useState(getTodayIdx());
+      const [checks, setChecks]     = useState({});
+      const [notes, setNotes]       = useState({});
+      const [noteInput, setNoteInput] = useState("");
+      const weekKey = getWeekKey();
+      const todayIdx = getTodayIdx();
+
+      useEffect(() => {
+        try {
+          const saved = localStorage.getItem("wt_data");
+          if (saved) { const p = JSON.parse(saved); setChecks(p.checks||{}); setNotes(p.notes||{}); }
+        } catch(e) {}
+      }, []);
+
+      const save = (c, n) => { try { localStorage.setItem("wt_data", JSON.stringify({checks:c, notes:n})); } catch(e) {} };
+
+      const toggle = (d, id) => {
+        const k = `${weekKey}_${d}_${id}`;
+        const next = {...checks, [k]: !checks[k]};
+        setChecks(next); save(next, notes);
+      };
+
+      const isOn = (d, id) => !!checks[`${weekKey}_${d}_${id}`];
+
+      const dayHabits = (d) => [...HABITS, ...(d===6?[SUNDAY_EXTRA]:[]), ...(d===4?[FRIDAY_EXTRA]:[])];
+
+      const score = (d) => {
+        const h = dayHabits(d);
+        return { done: h.filter(x => isOn(d, x.id)).length, total: h.length };
+      };
+
+      const weekScore = () => {
+        let done=0, total=0;
+        DAYS.forEach((_,i) => { const s=score(i); done+=s.done; total+=s.total; });
+        return {done, total};
+      };
+
+      const addNote = () => {
+        if (!noteInput.trim()) return;
+        const k = `${weekKey}_${day}`;
+        const next = {...notes, [k]: [...(notes[k]||[]), {text:noteInput, time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]};
+        setNotes(next); save(checks, next); setNoteInput("");
+      };
+
+      const delNote = (d, i) => {
+        const k = `${weekKey}_${d}`;
+        const next = {...notes, [k]: (notes[k]||[]).filter((_,j)=>j!==i)};
+        setNotes(next); save(checks, next);
+      };
+
+      const ws = weekScore();
+      const pct = Math.round(ws.done/ws.total*100);
+      const pctColor = pct>=80?"#5A8A5A":pct>=50?"#A0845C":"#B86050";
+
+      return (
+        <div style={{maxWidth:680, margin:"0 auto"}}>
+
+          {/* HEADER */}
+          <div style={{background:"#C8D8C7", borderBottom:"1px solid #B8CCB7", padding:"16px 20px", position:"sticky", top:0, zIndex:10}}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
+              <div>
+                <div style={{fontSize:18, fontWeight:600, letterSpacing:"-0.3px"}}>weekly tracker</div>
+                <div style={{fontSize:12, color:"#9A8A78", fontFamily:"'DM Mono',monospace"}}>
+                  week of {new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"})}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:28, fontWeight:600, color:pctColor, fontFamily:"'DM Mono',monospace"}}>{pct}%</div>
+                <div style={{fontSize:11, color:"#9A8A78"}}>{ws.done}/{ws.total} habits</div>
+              </div>
+            </div>
+            <div className="bar-bg"><div className="bar-fill" style={{width:`${pct}%`, background:pctColor}}/></div>
+          </div>
+
+          {/* NAV */}
+          <div style={{display:"flex", gap:4, padding:"12px 20px 0", background:"#C8D8C7"}}>
+            {["tracker","schedule","stats"].map(t => (
+              <button key={t} className="tab-btn" onClick={()=>setTab(t)}
+                style={{padding:"6px 14px", borderRadius:"6px 6px 0 0", fontSize:13, fontWeight:500,
+                  color: tab===t?"#2C2218":"#9A8A78",
+                  background: tab===t?"#DDE8DC":"transparent",
+                  borderBottom: tab===t?"none":"1px solid #B8CCB7"}}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* BODY */}
+          <div style={{padding:20}}>
+
+            {/* DAY TABS */}
+            <div style={{display:"flex", gap:6, marginBottom:20, flexWrap:"wrap"}}>
+              {DAYS.map((d,i) => {
+                const s = score(i);
+                return (
+                  <button key={d} className={`day-btn${day===i?" active":""}${i===todayIdx?" today":""}`} onClick={()=>setDay(i)}>
+                    <div style={{fontWeight:day===i?600:400}}>{d}</div>
+                    <div style={{fontSize:10, color:s.done===s.total?"#5A8A5A":"#9A8A78", fontFamily:"'DM Mono',monospace"}}>{s.done}/{s.total}</div>
+                    {i===todayIdx && <div style={{width:4,height:4,borderRadius:"50%",background:"#A0845C",margin:"2px auto 0"}}/>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* TRACKER TAB */}
+            {tab==="tracker" && (
+              <div>
+                <div style={{fontSize:16, fontWeight:600, marginBottom:4}}>{FULL_DAYS[day]}</div>
+                <div style={{fontSize:12, color:"#9A8A78", fontFamily:"'DM Mono',monospace", marginBottom:16}}>
+                  {score(day).done}/{score(day).total} completed
+                </div>
+
+                <div className="card" style={{padding:8, marginBottom:16}}>
+                  {dayHabits(day).map(h => {
+                    const done = isOn(day, h.id);
+                    return (
+                      <div key={h.id} className="habit-row" onClick={()=>toggle(day,h.id)}>
+                        <div className="check-box" style={{background:done?h.color:"transparent", borderColor:done?h.color:"#C4B8A8"}}>
+                          {done && <span style={{color:"#fff",fontSize:12}}>✓</span>}
+                        </div>
+                        <span style={{fontSize:14, color:"#9A8A78", width:20, textAlign:"center"}}>{h.icon}</span>
+                        <span style={{fontSize:13, color:done?"#2C2218":"#7A6A58", flex:1}}>{h.label}</span>
+                        {done && <span style={{fontSize:11, color:h.color}}>done</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{marginBottom:20}}>
+                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:6}}>
+                    <span style={{fontSize:11,color:"#9A8A78"}}>day progress</span>
+                    <span style={{fontSize:11,color:"#9A8A78",fontFamily:"'DM Mono',monospace"}}>{Math.round(score(day).done/score(day).total*100)}%</span>
+                  </div>
+                  <div className="bar-bg"><div className="bar-fill" style={{width:`${score(day).done/score(day).total*100}%`,background:"#A0845C"}}/></div>
+                </div>
+
+                <div className="card">
+                  <div className="section-label">notes</div>
+                  {(notes[`${weekKey}_${day}`]||[]).map((n,i)=>(
+                    <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8,padding:8,background:"#DDE8DC",borderRadius:8}}>
+                      <span style={{fontSize:10,color:"#9A8A78",fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>{n.time}</span>
+                      <span style={{fontSize:13,color:"#3C2E20",flex:1}}>{n.text}</span>
+                      <button onClick={()=>delNote(day,i)} style={{background:"none",border:"none",color:"#B8A898",cursor:"pointer",fontSize:14}}>×</button>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",gap:8,marginTop:8}}>
+                    <input className="note-input" placeholder="Add a note for today…" value={noteInput}
+                      onChange={e=>setNoteInput(e.target.value)}
+                      onKeyDown={e=>e.key==="Enter"&&addNote()}/>
+                    <button className="add-btn" onClick={addNote}>add</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SCHEDULE TAB */}
+            {tab==="schedule" && (
+              <div>
+                <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>{FULL_DAYS[day]}</div>
+                {day===3 && <div style={{fontSize:12,color:"#A0845C",marginBottom:12}}>No curfew tonight — WFH Friday!</div>}
+                {day===4 && <div style={{fontSize:12,color:"#5A8A5A",marginBottom:12}}>WFH day — zero prep. Recipe planning during a slow moment!</div>}
+                {day===6 && <div style={{fontSize:12,color:"#8C6A40",marginBottom:12}}>N5 mock exam + batch cook day.</div>}
+                <div className="card">
+                  {SCHEDULE[day].map((item,i)=>(
+                    <div key={i} className="sched-row">
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"#9A8A78",minWidth:60,paddingTop:2}}>{item.time}</div>
+                      <div className="cat-dot" style={{background:CAT_COLORS[item.cat]||"#9A8A78"}}/>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,color:"#3C2E20"}}>{item.label}</div>
+                        {item.note     && <div style={{fontSize:11,color:"#9A8A78",marginTop:1}}>{item.note}</div>}
+                        {item.duration && <div style={{fontSize:11,color:"#9A8A78",marginTop:1}}>{item.duration}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:16,display:"flex",flexWrap:"wrap",gap:8}}>
+                  {Object.entries(CAT_COLORS).map(([cat,color])=>(
+                    <div key={cat} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#9A8A78"}}>
+                      <div style={{width:7,height:7,borderRadius:"50%",background:color}}/>
+                      {cat}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* STATS TAB */}
+            {tab==="stats" && (
+              <div>
+                <div style={{fontSize:13,color:"#9A8A78",marginBottom:16}}>weekly time allocation — 168 hrs total</div>
+
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:20}}>
+                  {[
+                    {label:"flex time", value:"~19h", sub:"gaming, rest, anything", color:"#5A7A9A"},
+                    {label:"hobbies",   value:"~19h", sub:"piano + art + japanese",  color:"#8C6A40"},
+                    {label:"japanese",  value:"~12h", sub:"immersion + review + N5", color:"#5A8A5A"},
+                    {label:"piano",     value:"3.5h", sub:"30 min × 7 days",         color:"#8C6A40"},
+                    {label:"art",       value:"3.5h", sub:"30 min × 7 days",         color:"#B06050"},
+                    {label:"treadmill", value:"~7.5h",sub:"daily ~65 min",           color:"#A0845C"},
+                  ].map(s=>(
+                    <div key={s.label} className="card" style={{borderRadius:10}}>
+                      <div style={{fontSize:11,color:"#9A8A78",marginBottom:4}}>{s.label}</div>
+                      <div style={{fontSize:20,fontWeight:600,color:s.color,fontFamily:"'DM Mono',monospace"}}>{s.value}</div>
+                      <div style={{fontSize:10,color:"#B8A898",marginTop:2}}>{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="card" style={{marginBottom:12}}>
+                  <div className="section-label">full breakdown</div>
+                  {WEEK_STATS.map(s=>(
+                    <div key={s.label} className="stat-row">
+                      <div style={{fontSize:12,color:"#7A6A58",minWidth:100}}>{s.label}</div>
+                      <div style={{flex:1}}>
+                        <div className="bar-bg"><div className="bar-fill" style={{width:`${s.hours/49*100}%`,background:s.color}}/></div>
+                      </div>
+                      <div style={{fontSize:12,color:"#9A8A78",fontFamily:"'DM Mono',monospace",minWidth:34,textAlign:"right"}}>{s.hours}h</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="card" style={{marginBottom:12}}>
+                  <div className="section-label">japanese system</div>
+                  {[
+                    {label:"Treadmill immersion", value:"~8h",  note:"daily while walking"},
+                    {label:"Structured review",   value:"~2h",  note:"15–20 min/day, N5 focused"},
+                    {label:"N5 mock exam",         value:"~1h",  note:"every Sunday"},
+                  ].map(r=>(
+                    <div key={r.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #DDE8DC"}}>
+                      <div>
+                        <div style={{fontSize:13,color:"#3C2E20"}}>{r.label}</div>
+                        <div style={{fontSize:11,color:"#9A8A78"}}>{r.note}</div>
+                      </div>
+                      <div style={{fontSize:14,fontWeight:500,color:"#5A8A5A",fontFamily:"'DM Mono',monospace"}}>{r.value}</div>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",justifyContent:"space-between",paddingTop:8}}>
+                    <div style={{fontSize:13,color:"#2C2218",fontWeight:500}}>Total Japanese / week</div>
+                    <div style={{fontSize:14,fontWeight:600,color:"#5A8A5A",fontFamily:"'DM Mono',monospace"}}>~11–13h</div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="section-label">this week's habits</div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <span style={{fontSize:13,color:"#7A6A58"}}>overall completion</span>
+                    <span style={{fontSize:13,color:pctColor,fontFamily:"'DM Mono',monospace",fontWeight:500}}>{ws.done}/{ws.total} ({pct}%)</span>
+                  </div>
+                  <div className="bar-bg" style={{marginBottom:12}}>
+                    <div className="bar-fill" style={{width:`${pct}%`,background:pctColor}}/>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+                    {DAYS.map((d,i)=>{
+                      const s=score(i); const p=Math.round(s.done/s.total*100);
+                      return (
+                        <div key={d} style={{textAlign:"center",cursor:"pointer"}} onClick={()=>{setDay(i);setTab("tracker");}}>
+                          <div style={{fontSize:10,color:i===todayIdx?"#A0845C":"#9A8A78",marginBottom:4}}>{d}</div>
+                          <div style={{height:32,background:"#D0DFD0",borderRadius:4,overflow:"hidden",display:"flex",alignItems:"flex-end"}}>
+                            <div style={{width:"100%",height:`${p}%`,background:p>=80?"#5A8A5A":p>=50?"#A0845C":"#C4B8A8",borderRadius:4,transition:"height 0.3s"}}/>
+                          </div>
+                          <div style={{fontSize:10,color:"#B8A898",marginTop:3,fontFamily:"'DM Mono',monospace"}}>{p}%</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
