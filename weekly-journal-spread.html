@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weekly Spread</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #e8ede7;
+      font-family: 'DM Sans', sans-serif;
+      padding: 24px;
+      color: #2C2218;
+    }
+
+    .page {
+      background: #f5f0e8;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1.5px solid #d8cfbf;
+    }
+    .header-left h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 400;
+      color: #2C2218;
+      letter-spacing: -0.3px;
+    }
+    .header-left .week-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #9A8A78;
+      margin-top: 3px;
+      letter-spacing: 0.08em;
+    }
+    .mood-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .mood-label { font-size: 11px; color: #9A8A78; margin-right: 4px; }
+    .mood-circle {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid #c8bfaa;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      background: #f5f0e8;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .mood-circle:hover { border-color: #a0845c; transform: scale(1.1); }
+    .mood-circle.selected { border-color: #a0845c; background: #ede5d8; }
+
+    /* MAIN GRID */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* DAY COLUMNS */
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .day-col {
+      background: #eee8df;
+      border-radius: 10px;
+      padding: 10px 8px;
+      min-height: 180px;
+    }
+    .day-col.weekend { background: #e8e0f0; }
+    .day-col.wfh { background: #e2ede2; }
+    .day-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: #7a6a58;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .day-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #b8a898;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .day-check-list { list-style: none; }
+    .day-check-list li {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+      font-size: 10px;
+      color: #7a6a58;
+      cursor: pointer;
+      user-select: none;
+    }
+    .day-check-list li .box {
+      width: 12px; height: 12px;
+      border: 1.5px solid #c4b8a8;
+      border-radius: 3px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 8px;
+      transition: all 0.12s;
+    }
+    .day-check-list li.done .box {
+      background: #a0845c;
+      border-color: #a0845c;
+      color: white;
+    }
+    .day-check-list li.done span { text-decoration: line-through; opacity: 0.6; }
+    .day-special {
+      font-size: 9px;
+      color: #9a8a78;
+      font-style: italic;
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed #d8cfbf;
+    }
+    .day-notes-line {
+      margin-top: 8px;
+      border-top: 1px solid #d8cfbf;
+      padding-top: 6px;
+    }
+    .day-notes-line input {
+      width: 100%;
+      background: none;
+      border: none;
+      outline: none;
+      font-size: 10px;
+      font-family: 'DM Sans', sans-serif;
+      color: #5a4a38;
+      placeholder-color: #c4b8a8;
+    }
+
+    /* HABIT TRACKER GRID */
+    .habit-grid-wrap {
+      background: #eee8df;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .habit-grid-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-style: italic;
+      color: #5a4a38;
+      margin-bottom: 12px;
+    }
+    .habit-grid-table { width: 100%; border-collapse: collapse; }
+    .habit-grid-table th {
+      font-size: 10px;
+      font-weight: 500;
+      color: #9a8a78;
+      text-align: center;
+      padding: 0 3px 8px;
+      letter-spacing: 0.05em;
+    }
+    .habit-grid-table th.habit-name-th { text-align: left; font-size: 10px; }
+    .habit-grid-table td { padding: 3px; }
+    .habit-grid-table td.habit-name-td {
+      font-size: 11px;
+      color: #5a4a38;
+      padding-right: 8px;
+      white-space: nowrap;
+    }
+    .habit-grid-table td.habit-name-td .habit-icon { margin-right: 4px; }
+    .h-box {
+      width: 18px; height: 18px;
+      border: 1.5px solid #c4b8a8;
+      border-radius: 4px;
+      margin: 0 auto;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      transition: all 0.12s;
+      background: #f5f0e8;
+    }
+    .h-box:hover { border-color: #a0845c; }
+    .h-box.checked { background: #a0845c; border-color: #a0845c; color: white; }
+    .h-box.na { background: #e8e0d8; border-color: #ddd5ca; cursor: default; }
+
+    /* WEEKLY STATS */
+    .stats-wrap {
+      background: #eee8df;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .stats-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-style: italic;
+      color: #5a4a38;
+      margin-bottom: 12px;
+    }
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+    .stat-label { font-size: 11px; color: #7a6a58; min-width: 90px; }
+    .stat-bar-bg {
+      flex: 1;
+      height: 5px;
+      background: #d8cfbf;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .stat-bar-fill { height: 100%; border-radius: 3px; }
+    .stat-val { font-size: 10px; color: #9a8a78; font-family: 'DM Mono', monospace; min-width: 28px; text-align: right; }
+
+    /* NOTES + INTENTIONS */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+    .notes-box {
+      background: #eee8df;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .notes-box-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 13px;
+      font-style: italic;
+      color: #5a4a38;
+      margin-bottom: 10px;
+    }
+    .ruled-line {
+      border: none;
+      border-bottom: 1px solid #d8cfbf;
+      width: 100%;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      background: none;
+      outline: none;
+      font-size: 11px;
+      font-family: 'DM Sans', sans-serif;
+      color: #3c2e20;
+    }
+
+    /* COMPLETION RING */
+    .ring-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 0;
+    }
+    .ring-label { font-size: 10px; color: #9a8a78; margin-top: 6px; }
+    .ring-pct { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; color: #5a4a38; margin-top: 2px; }
+
+    /* PRINT */
+    @media print {
+      body { background: white; padding: 0; }
+      .page { box-shadow: none; border-radius: 0; }
+      .no-print { display: none; }
+    }
+
+    /* CONTROLS */
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .ctrl-btn {
+      background: #a0845c;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .ctrl-btn:hover { opacity: 0.85; }
+    .ctrl-btn.outline {
+      background: none;
+      border: 1.5px solid #a0845c;
+      color: #a0845c;
+    }
+  </style>
+</head>
+<body>
+
+<div class="controls no-print">
+  <button class="ctrl-btn outline" onclick="window.print()">🖨 print / save as PDF</button>
+  <button class="ctrl-btn outline" onclick="resetAll()">↺ reset week</button>
+</div>
+
+<div class="page" id="spread">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>weekly spread</h1>
+      <div class="week-label" id="weekLabel"></div>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+      <div class="mood-row">
+        <span class="mood-label">week mood</span>
+        <div class="mood-circle" onclick="pickMood(this)" title="great">🌟</div>
+        <div class="mood-circle" onclick="pickMood(this)" title="good">😊</div>
+        <div class="mood-circle" onclick="pickMood(this)" title="okay">😐</div>
+        <div class="mood-circle" onclick="pickMood(this)" title="tired">😴</div>
+        <div class="mood-circle" onclick="pickMood(this)" title="rough">🌧</div>
+      </div>
+      <div id="completionRing" style="text-align:right">
+        <span class="ring-pct" id="pctDisplay">0%</span>
+        <div class="ring-label" id="habitCountDisplay">0 / 0 habits</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY COLUMNS -->
+  <div class="days-grid" id="daysGrid"></div>
+
+  <!-- HABIT GRID + STATS -->
+  <div class="main-grid" style="margin-bottom:16px">
+    <div class="habit-grid-wrap">
+      <div class="habit-grid-title">habit tracker</div>
+      <table class="habit-grid-table">
+        <thead>
+          <tr>
+            <th class="habit-name-th">habit</th>
+            <th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th><th>S</th>
+          </tr>
+        </thead>
+        <tbody id="habitTableBody"></tbody>
+      </table>
+    </div>
+    <div class="stats-wrap">
+      <div class="stats-title">time at a glance</div>
+      <div id="statsContent"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NOTES -->
+  <div class="bottom-grid">
+    <div class="notes-box">
+      <div class="notes-box-title">intentions this week</div>
+      <input class="ruled-line" placeholder="…" /><input class="ruled-line" placeholder="…" />
+      <input class="ruled-line" placeholder="…" /><input class="ruled-line" placeholder="…" />
+      <input class="ruled-line" placeholder="…" />
+    </div>
+    <div class="notes-box">
+      <div class="notes-box-title">wins + highlights</div>
+      <input class="ruled-line" placeholder="…" /><input class="ruled-line" placeholder="…" />
+      <input class="ruled-line" placeholder="…" /><input class="ruled-line" placeholder="…" />
+      <input class="ruled-line" placeholder="…" />
+    </div>
+    <div class="notes-box">
+      <div class="notes-box-title">next week's focus</div>
+      <input class="ruled-line" placeholder="…" /><input class="ruled-line" placeholder="…" />
+      <input class="ruled-line" placeholder="…" /><input class="ruled-line" placeholder="…" />
+      <input class="ruled-line" placeholder="…" />
+      <div style="margin-top:10px">
+        <div class="notes-box-title" style="font-size:12px">sunday cook plan 🍱</div>
+        <input class="ruled-line" placeholder="protein…" />
+        <input class="ruled-line" placeholder="carbs…" />
+        <input class="ruled-line" placeholder="veg…" />
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── DATA ──────────────────────────────────────────────────────────────────
+
+  const DAYS_SHORT  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const DAYS_FULL   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+  // Per-day quick checklist items
+  const DAY_ITEMS = {
+    0: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art","📖 JP review","🌙 Sleep 9:45"],
+    1: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art","📖 JP review","🌙 Sleep 9:45"],
+    2: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art","📖 JP review","🌙 Sleep 9:45"],
+    3: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art","📖 JP review","🎉 Takeout!"],
+    4: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art (deep)","📖 JP review","🍳 Recipe plan"],
+    5: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art (deep)","📖 JP review","🧹 Chores"],
+    6: ["💧 Water","🏃 Treadmill","🧘 Stretch","🎹 Piano","🎨 Art","📝 N5 exam","🍱 Batch cook"],
+  };
+
+  const DAY_SPECIAL = {
+    3: "No curfew — WFH tomorrow!",
+    4: "WFH · Recipe planning during work",
+    6: "N5 mock exam + batch cook day",
+  };
+
+  // Full habit tracker rows
+  const HABITS = [
+    { icon:"💧", label:"Water 2.5L",     color:"#7C9A8A" },
+    { icon:"🏃", label:"Treadmill",       color:"#A0845C" },
+    { icon:"🧘", label:"Stretch",         color:"#A0845C" },
+    { icon:"🎹", label:"Piano 30min",     color:"#8C7355" },
+    { icon:"🎨", label:"Art 30min",       color:"#B07060" },
+    { icon:"🎌", label:"JP immersion",    color:"#7A8C6E" },
+    { icon:"📖", label:"JP review",       color:"#7A8C6E" },
+    { icon:"🌙", label:"7h sleep",        color:"#7B8FA1" },
+    { icon:"🥗", label:"Healthy meals",   color:"#8A9E72" },
+    { icon:"📝", label:"N5 exam (Sun)",   color:"#7A8C6E", onlyDay:6 },
+    { icon:"🍳", label:"Recipe plan (Fri)",color:"#8A9E72", onlyDay:4 },
+  ];
+
+  // Time stats
+  const STATS = [
+    { label:"Flex time",   hours:19,   color:"#7B8FA1" },
+    { label:"Japanese",    hours:12,   color:"#7A8C6E" },
+    { label:"Treadmill",   hours:7.5,  color:"#A0845C" },
+    { label:"Piano",       hours:3.5,  color:"#8C7355" },
+    { label:"Art",         hours:3.5,  color:"#B07060" },
+    { label:"Hobbies tot", hours:19,   color:"#8C6A40" },
+    { label:"Commute",     hours:4.3,  color:"#8A8278" },
+  ];
+
+  // ── STATE ─────────────────────────────────────────────────────────────────
+
+  function getWeekKey() {
+    const d = new Date(), day = d.getDay();
+    const diff = d.getDate() - day + (day===0?-6:1);
+    return new Date(d.setDate(diff)).toISOString().split("T")[0];
+  }
+
+  const WK = getWeekKey();
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem("wj_"+WK)||"{}"); } catch(e){}
+
+  function save() { try { localStorage.setItem("wj_"+WK, JSON.stringify(state)); } catch(e){} }
+
+  function setWeekLabel() {
+    const mon = new Date(WK);
+    const sun = new Date(WK); sun.setDate(sun.getDate()+6);
+    const fmt = d => d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    document.getElementById("weekLabel").textContent =
+      `${fmt(mon)} – ${fmt(sun)}  ·  week of ${WK}`;
+  }
+
+  // ── RENDER DAY COLUMNS ───────────────────────────────────────────────────
+
+  function renderDays() {
+    const grid = document.getElementById("daysGrid");
+    grid.innerHTML = "";
+    const today = new Date().getDay();
+    const todayIdx = today===0?6:today-1;
+
+    DAYS_SHORT.forEach((d, i) => {
+      const col = document.createElement("div");
+      col.className = "day-col" + (i>=5?" weekend":"") + (i===4?" wfh":"");
+
+      // Date number
+      const date = new Date(WK); date.setDate(date.getDate()+i);
+      const isToday = i===todayIdx;
+
+      col.innerHTML = `
+        <div class="day-name" style="${isToday?"color:#a0845c;":""}">${d}</div>
+        <div class="day-date">${date.getDate()}</div>
+        <ul class="day-check-list" id="dcl_${i}"></ul>
+        ${DAY_SPECIAL[i]?`<div class="day-special">${DAY_SPECIAL[i]}</div>`:""}
+        <div class="day-notes-line">
+          <input style="width:100%;background:none;border:none;outline:none;font-size:10px;font-family:'DM Sans',sans-serif;color:#5a4a38;" placeholder="note…" value="${state[`note_${i}`]||""}" onchange="state['note_${i}']=this.value;save()"/>
+        </div>
+      `;
+      grid.appendChild(col);
+
+      // Checklist items
+      const ul = document.getElementById(`dcl_${i}`);
+      DAY_ITEMS[i].forEach((item, j) => {
+        const k = `dc_${i}_${j}`;
+        const done = state[k];
+        const li = document.createElement("li");
+        li.className = done?"done":"";
+        li.innerHTML = `<div class="box">${done?"✓":""}</div><span>${item}</span>`;
+        li.onclick = () => {
+          state[k] = !state[k];
+          save(); renderDays(); renderHabitTable(); updatePct();
+        };
+        ul.appendChild(li);
+      });
+    });
+  }
+
+  // ── RENDER HABIT TABLE ───────────────────────────────────────────────────
+
+  function renderHabitTable() {
+    const tbody = document.getElementById("habitTableBody");
+    tbody.innerHTML = "";
+    HABITS.forEach((h, hi) => {
+      const tr = document.createElement("tr");
+      let cells = `<td class="habit-name-td"><span class="habit-icon">${h.icon}</span>${h.label}</td>`;
+      for (let d=0; d<7; d++) {
+        const isNA = (h.onlyDay !== undefined && h.onlyDay !== d);
+        const k = `hb_${hi}_${d}`;
+        const checked = state[k];
+        if (isNA) {
+          cells += `<td><div class="h-box na"></div></td>`;
+        } else {
+          cells += `<td><div class="h-box${checked?" checked":""}" onclick="toggleHabit(${hi},${d})" style="${checked?"background:"+h.color+";border-color:"+h.color:""}">${checked?"✓":""}</div></td>`;
+        }
+      }
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function toggleHabit(hi, d) {
+    const k = `hb_${hi}_${d}`;
+    state[k] = !state[k];
+    save(); renderHabitTable(); updatePct();
+  }
+
+  // ── RENDER STATS ─────────────────────────────────────────────────────────
+
+  function renderStats() {
+    const el = document.getElementById("statsContent");
+    el.innerHTML = STATS.map(s => `
+      <div class="stat-item">
+        <div class="stat-label">${s.label}</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" style="width:${Math.min(s.hours/49*100,100)}%;background:${s.color}"></div>
+        </div>
+        <div class="stat-val">${s.hours}h</div>
+      </div>
+    `).join("") + `
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #d8cfbf;font-size:10px;color:#9a8a78;line-height:1.6">
+        <div>🎌 JP total: <strong style="color:#5a4a38">~11–13h</strong> /wk</div>
+        <div>🎹 + 🎨 + 🎌 hobbies: <strong style="color:#5a4a38">~19h</strong> /wk</div>
+        <div>🕹 flex time: <strong style="color:#5a4a38">~19h</strong> /wk</div>
+      </div>
+    `;
+  }
+
+  // ── COMPLETION % ─────────────────────────────────────────────────────────
+
+  function updatePct() {
+    // Count day checklist items
+    let done=0, total=0;
+    for (let d=0; d<7; d++) {
+      DAY_ITEMS[d].forEach((_,j) => {
+        total++;
+        if (state[`dc_${d}_${j}`]) done++;
+      });
+    }
+    const pct = total>0 ? Math.round(done/total*100) : 0;
+    const color = pct>=80?"#5A8A5A":pct>=50?"#A0845C":"#B86050";
+    document.getElementById("pctDisplay").textContent = pct+"%";
+    document.getElementById("pctDisplay").style.color = color;
+    document.getElementById("habitCountDisplay").textContent = `${done} / ${total} checked`;
+  }
+
+  // ── MOOD ─────────────────────────────────────────────────────────────────
+
+  function pickMood(el) {
+    document.querySelectorAll(".mood-circle").forEach(m=>m.classList.remove("selected"));
+    el.classList.add("selected");
+    state.mood = el.title; save();
+  }
+
+  function restoreMood() {
+    if (state.mood) {
+      document.querySelectorAll(".mood-circle").forEach(m => {
+        if (m.title===state.mood) m.classList.add("selected");
+      });
+    }
+  }
+
+  // ── RESET ────────────────────────────────────────────────────────────────
+
+  function resetAll() {
+    if (confirm("Reset all checks for this week?")) {
+      state = {}; save();
+      renderDays(); renderHabitTable(); updatePct();
+    }
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────────────────
+
+  setWeekLabel();
+  renderDays();
+  renderHabitTable();
+  renderStats();
+  updatePct();
+  restoreMood();
+</script>
+</body>
+</html>
